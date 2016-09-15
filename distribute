@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 """
 Usage: distribute [OPTION]... [FILE]...
-Program to distribute given files to all Raspberry Pi Zeros connected to the controller board. Will create directories on the
-controller board if they do not already exist.
+Program to distribute given files to all Raspberry Pi Zeros connected to the controller board. Will create directories 
+on the controller board if they do not already exist.
 
 -p, --power 	Turn on Zeros, default assumes zeros are already on
--n, --number: 	Distribute to given number of zeros only, if used in conjunction with -o, that many Zeros will be turned on. Default is 4.
+-n, --number: 	Distribute to given number of zeros only, if used in conjunction with -o, that many Zeros will be 
+                turned on. Default is 4.
 -o, --output: 	Path to distribute to, defaults to current path
 -h, --help: 	Display the help text
 -v, --verbose: 	Descriptive output
@@ -14,10 +15,10 @@ Examples:
     distribute my_program.py	Attempts to copy my_program.py to all Pi Zero's
     
     distribute -n 3 -p my_program.py another_program.py		Will turn on 3 
-		Pi Zeros before attempting to copy both files to the 3 Pi Zeros
+    Pi Zeros before attempting to copy both files to the 3 Pi Zeros
 
     distribute -o /home/pi/example/ my_program.py	Attempts to copy file in 
-		local current working directory to Pi Zeros directories /home/pi/example/my_program.py 
+    local current working directory to Pi Zeros directories /home/pi/example/my_program.py 
 
 Requires python3 to run.
 """ 
@@ -37,9 +38,9 @@ def turn_on_zeros(number_of_zeros: int, verbose_mode: bool) -> None:
 
     """
     if number_of_zeros == 4:
-       if verbose_mode:
-           print("Turning on power to all Pi Zeros")
-       subprocess.call(["clusterhat", "on", "all"])
+        if verbose_mode:
+            print("Turning on power to all Pi Zeros")
+        subprocess.call(["clusterhat", "on", "all"])
     else:
         if verbose_mode:
             print("Turning on power to {} Pi Zero{}.".format(number_of_zeros, "s" if number_of_zeros > 1 else ""))
@@ -51,9 +52,9 @@ def turn_on_zeros(number_of_zeros: int, verbose_mode: bool) -> None:
     sleep(30) 
 
 
-def distribute_file(filenames: [str], working_directory:str, number_of_zeros: int, verbose_mode: bool) -> None:
+def distribute_file(filenames: [str], working_directory: str, number_of_zeros: int, verbose_mode: bool) -> None:
     """
-    Takes the file and uses scp, which uses ssh, to distribute the file to the given number of Pi Zeros, starting with 1.
+    Takes the file and uses scp, which uses ssh, to distribute the file to the given number of Pi Zeros, starting with 1
 
     Args:
         filenames: Args list, assumed to contain names of the files to send and what they will be called on Pi Zeros.
@@ -72,9 +73,9 @@ def distribute_file(filenames: [str], working_directory:str, number_of_zeros: in
         for filename in filenames:
             if verbose_mode:
                 print("Sending {} to Pi Zero {}:{}{}".format(filename, pi, working_directory, filename))
-                subprocess.call(["scp", "-v" ,filename, "pi@p{}.local:{}{}".format(pi, working_directory, filename)])
+                subprocess.call(["scp", "-v", filename, "pi@p{}.local:{}{}".format(pi, working_directory, filename)])
             else:
-                subprocess.call(["scp" ,filename, "pi@p{}.local:{}{}".format(pi, working_directory, filename)])
+                subprocess.call(["scp", filename, "pi@p{}.local:{}{}".format(pi, working_directory, filename)])
 
     if verbose_mode:
         print("Complete")
