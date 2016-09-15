@@ -1,0 +1,154 @@
+#!/usr/bin/python3
+"""
+Usage: distribute [OPTION]... [FILE]...
+Program to distribute given files to all Raspberry Pi Zeros connected to the controller board. Will create directories on the
+controller board if they do not already exist.
+
+-p, --power 	Turn on Zeros, default assumes zeros are already on
+-n, --number: 	Distribute to given number of zeros only, if used in conjunction with -o, that many Zeros will be turned on. Default is 4.
+-o, --output: 	Path to distribute to, defaults to current path
+-h, --help: 	Display the help text
+-v, --verbose: 	Descriptive output
+
+Examples:
+    distribute my_program.py	Attempts to copy my_program.py to all Pi Zero's
+    
+    distribute -n 3 -p my_program.py another_program.py		Will turn on 3 
+		Pi Zeros before attempting to copy both files to the 3 Pi Zeros
+
+    distribute -o /home/pi/example/ my_program.py	Attempts to copy file in 
+		local current working directory to Pi Zeros directories /home/pi/example/my_program.py 
+
+Requires python3 to run.
+""" 
+import getopt
+import subprocess
+import sys
+from time import sleep
+
+
+def turn_on_zeros(number_of_zeros: int, verbose_mode: bool) -> None:
+    """
+    Optional function used to power on Pi Zeros if required.
+
+    Args:
+        number_of_zeros: How many raspberry pi zeros will be turned on.
+        verbose_mode: Whether or not to print progress information.
+
+    """
+    if number_of_zeros == 4:
+       if verbose_mode:
+           print("Turning on power to all Pi Zeros")
+       subprocess.call(["clusterhat", "on", "all"])
+    else:
+        if verbose_mode:
+            print("Turning on power to {} Pi Zero{}.".format(number_of_zeros, "s" if number_of_zeros > 1 else ""))
+        for pi in range(1, number_of_zeros + 1):
+            subprocess.call(["clusterhat", "on", "p{}".format(pi)])
+            sleep(0.2)
+    if verbose_mode:
+        print("Waiting for Pi Zeros to boot") 
+    sleep(30) 
+
+
+def distribute_file(filenames: [str], working_directory:str, number_of_zeros: int, verbose_mode: bool) -> None:
+    """
+    Takes the file and uses scp, which uses ssh, to distribute the file to the given number of Pi Zeros, starting with 1.
+
+    Args:
+        filenames: Args list, assumed to contain names of the files to send and what they will be called on Pi Zeros.
+        working_directory: Location to send the file to.
+        number_of_zeros: How many Pi Zeros to send the file to, incrementing from 1.
+        verbose_mode: Whether or not to print progress information.
+    """
+    for pi in range(1, number_of_zeros + 1):
+        # Make directories
+        if verbose_mode:
+            print("Checking directory {} on Pi Zero {}".format(working_directory, pi))
+            subprocess.call(["ssh", "pi@p{}.local".format(pi), "mkdir -pv {}".format(working_directory)])
+        else:
+            subprocess.call(["ssh", "pi@p{}.local".format(pi), "mkdir -p {}".format(working_directory)])
+        # Send files
+        for filename in filenames:
+            if verbose_mode:
+                print("Sending {} to Pi Zero {}:{}{}".format(filename, pi, working_directory, filename))
+                subprocess.call(["scp", "-v" ,filename, "pi@p{}.local:{}{}".format(pi, working_directory, filename)])
+            else:
+                subprocess.call(["scp" ,filename, "pi@p{}.local:{}{}".format(pi, working_directory, filename)])
+
+    if verbose_mode:
+        print("Complete")
+
+
+def main(argv: [str]) -> None:
+    """
+    Reads the given arguments and determines the correct course of action. 
+    Also extracts values from the arguments to be used in the function.
+
+    Args:
+        argv: List of arguments and their values.
+    """
+    # Variables
+    verbose_mode = False
+    number_of_zeros = 4
+    working_directory = subprocess.check_output(["pwd"]).decode("utf-8").strip()
+    power_on = False
+
+    # Parse arguments
+    try:
+        opts, args = getopt.getopt(argv, "pn:o:hv", ["power", "number=", "output=", "help", "verbose"])
+    except getopt.GetoptError:
+        print(__doc__)
+        sys.exit(2)
+
+    # Exit if no file is given
+    if len(args) < 1:
+        print(__doc__)
+        sys.exit(3)
+    else:
+        filenames = args
+
+    # Process arguments
+    for opt, arg in opts:
+        if opt in ["-h", "--help"]:
+            print(__doc__)
+            sys.exit(1)
+        elif opt in ["-v", "--verbose"]:
+            verbose_mode = True
+        elif opt in ["-n", "--number"]:
+            number_of_zeros = int(arg)
+            if number_of_zeros > 4:
+                print("ERROR: The maximum number is 4")
+                sys.exit(4)
+        elif opt in ["-p", "--power"]:
+            power_on = True
+        elif opt in ["-o", "--output"]:
+            working_directory = arg
+        
+    # append a trailing slash to the working directory if the user or system failed to
+    if working_directory[-1] != "/":
+        working_directory += "/"
+
+    # check the file exists in current location before proceeding
+    try:
+        for filename in filenames:
+            subprocess.check_call(["ls", filename], stdout=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        print("File not found in current working directory")
+        try:
+            for filename in filenames:
+                subprocess.check_call(["ls", working_directory+filename], stdout=subprocess.DEVNULL)
+        except:
+            print("ERROR: File not found in given directory")
+            sys.exit(5)
+    
+    # boot the pi zeros if required
+    if power_on:
+        turn_on_zeros(number_of_zeros, verbose_mode)    
+ 
+    # distribute files to the pi zeros
+    distribute_file(filenames, working_directory, number_of_zeros, verbose_mode)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
