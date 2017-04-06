@@ -7,7 +7,7 @@ on the controller board if they do not already exist.
 -p, --power 	Turn on Zeros, default assumes zeros are already on
 -n, --number: 	Distribute to given number of zeros only, if used in conjunction with -o, that many Zeros will be 
                 turned on. Default is 4.
--o, --output: 	Path to distribute to, defaults to current path
+-d, --directory: 	Path to distribute to, defaults to current path
 -h, --help: 	Display the help text
 -v, --verbose: 	Descriptive output
 
@@ -97,7 +97,7 @@ def main(argv: [str]) -> None:
 
     # Parse arguments
     try:
-        opts, args = getopt.getopt(argv, "pn:o:hv", ["power", "number=", "output=", "help", "verbose"])
+        opts, args = getopt.getopt(argv, "pn:d:hv", ["power", "number=", "directory=", "help", "verbose"])
     except getopt.GetoptError:
         print(__doc__)
         sys.exit(2)
@@ -123,7 +123,7 @@ def main(argv: [str]) -> None:
                 sys.exit(4)
         elif opt in ["-p", "--power"]:
             power_on = True
-        elif opt in ["-o", "--output"]:
+        elif opt in ["-d", "--directory"]:
             working_directory = arg
         
     # append a trailing slash to the working directory if the user or system failed to
