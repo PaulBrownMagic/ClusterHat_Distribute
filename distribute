@@ -8,6 +8,7 @@ on the controller board if they do not already exist.
 -n, --number: 	Distribute to given number of zeros only, if used in conjunction with -o, that many Zeros will be 
                 turned on. Default is 4.
 -d, --directory: 	Path to distribute to, defaults to current path
+-c, --command   Run command on zeros
 -h, --help: 	Display the help text
 -v, --verbose: 	Descriptive output
 
@@ -19,6 +20,8 @@ Examples:
 
     distribute -o /home/pi/example/ my_program.py	Attempts to copy file in 
     local current working directory to Pi Zeros directories /home/pi/example/my_program.py 
+    
+    distribute -c 'sudo shutdown -h now'  Sends the shutdown command to all Zeros
 
 Requires python3 to run.
 """ 
@@ -29,10 +32,9 @@ from time import sleep
 
 
 def turn_on_zeros(number_of_zeros: int, verbose_mode: bool) -> None:
-    """
-    Optional function used to power on Pi Zeros if required.
+    """Power on Pi Zeros if required.
 
-    Args:
+    Params:
         number_of_zeros: How many raspberry pi zeros will be turned on.
         verbose_mode: Whether or not to print progress information.
 
@@ -53,10 +55,9 @@ def turn_on_zeros(number_of_zeros: int, verbose_mode: bool) -> None:
 
 
 def distribute_file(filenames: [str], working_directory: str, number_of_zeros: int, verbose_mode: bool) -> None:
-    """
-    Takes the file and uses scp, which uses ssh, to distribute the file to the given number of Pi Zeros, starting with 1
+    """Use scp and ssh to distribute a file to a given number of Pi Zeros, starting with 1.
 
-    Args:
+    Params:
         filenames: Args list, assumed to contain names of the files to send and what they will be called on Pi Zeros.
         working_directory: Location to send the file to.
         number_of_zeros: How many Pi Zeros to send the file to, incrementing from 1.
@@ -80,6 +81,20 @@ def distribute_file(filenames: [str], working_directory: str, number_of_zeros: i
     if verbose_mode:
         print("Complete")
 
+def run_command(command: str, number_of_zeros: int, verbose_mode: bool) -> None:
+    """Run a command on the given number of zeros, starting with 1
+
+    Params:
+        command: the command to run in the Zeros.
+        number_of_zeros: how many zeros to send the command to, starting from 1 to 4.
+        verbose_mode: whether to print extra information to stdout or not
+    """
+    if verbose_mode:
+        print("Sending command '{}'".format(command))
+    for pi in range(1, number_of_zeros + 1):
+        subprocess.call(["ssh", "pi@p{}.local".format(pi), "{}".format(command)])
+    if verbose_mode:
+        print("Complete")
 
 def main(argv: [str]) -> None:
     """
@@ -97,23 +112,16 @@ def main(argv: [str]) -> None:
 
     # Parse arguments
     try:
-        opts, args = getopt.getopt(argv, "pn:d:hv", ["power", "number=", "directory=", "help", "verbose"])
+        opts, args = getopt.getopt(argv, "pn:d:hvc:", ["power", "number=", "directory=", "help", "verbose", "command="])
     except getopt.GetoptError:
         print(__doc__)
-        sys.exit(2)
-
-    # Exit if no file is given
-    if len(args) < 1:
-        print(__doc__)
-        sys.exit(3)
-    else:
-        filenames = args
+        sys.exit(1)
 
     # Process arguments
     for opt, arg in opts:
         if opt in ["-h", "--help"]:
             print(__doc__)
-            sys.exit(1)
+            sys.exit(2)
         elif opt in ["-v", "--verbose"]:
             verbose_mode = True
         elif opt in ["-n", "--number"]:
@@ -125,6 +133,16 @@ def main(argv: [str]) -> None:
             power_on = True
         elif opt in ["-d", "--directory"]:
             working_directory = arg
+        elif opt in ["-c", "--command"]:
+            run_command(arg, number_of_zeros, verbose_mode)
+            sys.exit(0)
+            
+    # Exit if no file is given
+    if len(args) < 1:
+        print(__doc__)
+        sys.exit(3)
+    else:
+        filenames = args
         
     # append a trailing slash to the working directory if the user or system failed to
     if working_directory[-1] != "/":
